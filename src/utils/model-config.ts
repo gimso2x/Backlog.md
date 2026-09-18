@@ -1,6 +1,18 @@
 import type { BacklogConfig } from "../types/index.ts";
 
-export const DEFAULT_MODELS = ["claude-sonnet-5", "claude-opus-5", "gemini-3.8-flash-tiered", "glm-5.3"] as const;
+export const DEFAULT_MODELS = [
+	"glm-5.3-flash",
+	"glm-5.3",
+	"claude-sonnet-5",
+	"claude-opus-5",
+	"claude-fable-5-1",
+	"gemini-3.8-flash-tiered",
+	"gpt-6-astra",
+	"gpt-5.6-luna",
+	"gpt-5.6-sol",
+	"preset:daily",
+	"preset:max-quality",
+] as const;
 
 type ModelConfig = Pick<BacklogConfig, "models"> | readonly string[] | null | undefined;
 

@@ -449,6 +449,9 @@ export class BacklogServer {
 					"/api/directories": {
 						GET: async (req: Request) => await this.handleListDirectories(req),
 					},
+					"/api/models": {
+						GET: async () => await this.handleListModels(),
+					},
 					"/api/docs": {
 						GET: async () => await this.handleListDocs(),
 						POST: async (req: Request) => await this.handleCreateDoc(req),
@@ -1550,6 +1553,65 @@ export class BacklogServer {
 		} catch (error) {
 			console.error("Error listing directories:", error);
 			return Response.json({ error: String(error), directories: [] }, { status: 500 });
+		}
+	}
+	private async handleListModels(): Promise<Response> {
+		try {
+			const modelsYamlPath = path.join(process.env.HOME || "/home/root1", ".gjc", "agent", "models.yml");
+			if (fs.existsSync(modelsYamlPath)) {
+				const content = await fs.promises.readFile(modelsYamlPath, "utf-8");
+				const models: Array<{ id: string; name: string; isPreset?: boolean }> = [];
+				const lines = content.split("\n");
+				let currentSection = "";
+				for (const line of lines) {
+					const trimmed = line.trim();
+					if (trimmed === "providers:") currentSection = "providers";
+					else if (trimmed === "profiles:") currentSection = "profiles";
+					else if (currentSection === "providers" && trimmed.startsWith("- id:")) {
+						const id = trimmed.replace("- id:", "").trim();
+						if (id && !models.some((m) => m.id === id)) {
+							models.push({ id, name: id });
+						}
+					} else if (currentSection === "profiles" && line.match(/^[ \t]*[a-zA-Z0-9_-]+:/) && !line.startsWith("#")) {
+						const prof = line.split(":")[0].trim();
+						if (
+							prof &&
+							prof !== "profiles" &&
+							prof !== "required_providers" &&
+							prof !== "model_mapping" &&
+							prof !== "default" &&
+							prof !== "executor" &&
+							prof !== "planner" &&
+							prof !== "architect" &&
+							prof !== "critic"
+						) {
+							const id = `preset:${prof}`;
+							if (!models.some((m) => m.id === id)) {
+								models.push({ id, name: `Preset: ${prof}`, isPreset: true });
+							}
+						}
+					}
+				}
+				if (models.length > 0) {
+					return Response.json({ models });
+				}
+			}
+			return Response.json({
+				models: [
+					{ id: "glm-5.3-flash", name: "GLM-5.3 Flash" },
+					{ id: "glm-5.3", name: "GLM-5.3" },
+					{ id: "claude-sonnet-5", name: "Claude Sonnet 5" },
+					{ id: "claude-opus-5", name: "Claude Opus 5" },
+					{ id: "claude-fable-5-1", name: "Claude Fable 5.1" },
+					{ id: "gemini-3.8-flash-tiered", name: "Gemini 3.8 Flash Tiered" },
+					{ id: "gpt-6-astra", name: "GPT-6.0 Astra" },
+					{ id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
+					{ id: "preset:daily", name: "Preset: daily", isPreset: true },
+					{ id: "preset:max-quality", name: "Preset: max-quality", isPreset: true },
+				],
+			});
+		} catch (err) {
+			return Response.json({ error: String(err), models: [] }, { status: 500 });
 		}
 	}
 

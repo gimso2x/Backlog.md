@@ -352,6 +352,16 @@ export class ApiClient {
 		const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : "";
 		return this.fetchJson(`${API_BASE}/directories${query}`);
 	}
+	async fetchModels(): Promise<Array<{ id: string; name: string; isPreset?: boolean }>> {
+		try {
+			const res = await this.fetchJson<{ models: Array<{ id: string; name: string; isPreset?: boolean }> }>(
+				`${API_BASE}/models`,
+			);
+			return res.models || [];
+		} catch {
+			return [];
+		}
+	}
 
 	async reorderTask(payload: ReorderTaskPayload): Promise<{ success: boolean; task: Task; changedTasks: Task[] }> {
 		return this.fetchJson<{ success: boolean; task: Task; changedTasks: Task[] }>(`${API_BASE}/tasks/reorder`, {

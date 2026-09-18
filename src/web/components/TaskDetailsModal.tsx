@@ -343,7 +343,22 @@ export const TaskDetailsModal: React.FC<Props> = ({
   const priorityOptions = useMemo(() => getPriorityOptions(availablePriorities), [availablePriorities]);
   const typeOptions = useMemo(() => getTaskTypeValues(availableTypes), [availableTypes]);
   const projectOptions = useMemo(() => getProjectValues(availableProjects), [availableProjects]);
-  const modelOptions = useMemo(() => getModelValues(availableModels), [availableModels]);
+  const [dynamicModels, setDynamicModels] = useState<Array<{ id: string; name: string; isPreset?: boolean }>>([]);
+
+  useEffect(() => {
+    apiClient.fetchModels().then((mods) => {
+      if (mods && mods.length > 0) {
+        setDynamicModels(mods);
+      }
+    });
+  }, []);
+
+  const modelOptions = useMemo(() => {
+    if (dynamicModels.length > 0) {
+      return dynamicModels.map((m) => m.id);
+    }
+    return getModelValues(availableModels);
+  }, [dynamicModels, availableModels]);
   const resolveMilestoneToId = useCallback((value?: string | null): string => {
     const normalized = (value ?? "").trim();
     if (!normalized) return "";
