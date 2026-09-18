@@ -77,6 +77,8 @@ export interface Task {
 	type?: string;
 	/** Monorepo project/component this task belongs to. Allowed values come from config `projects`; absent config means the field is unusable. */
 	project?: string;
+	/** LLM model selection for task execution (e.g. claude-sonnet-5, claude-opus-5). */
+	model?: string;
 	branch?: string;
 	ordinal?: number;
 	filePath?: string;
@@ -120,6 +122,7 @@ export interface TaskCreateInput {
 	priority?: string;
 	type?: string;
 	project?: string;
+	model?: string;
 	ordinal?: number;
 	milestone?: string;
 	labels?: string[];
@@ -146,6 +149,7 @@ export interface TaskUpdateInput {
 	priority?: string;
 	type?: string;
 	project?: string | null;
+	model?: string | null;
 	milestone?: string | null;
 	labels?: string[];
 	addLabels?: string[];
@@ -331,6 +335,8 @@ export interface BacklogConfig {
 	priorities?: string[];
 	/** Allowed monorepo project/component values. No default; the `project` field is unusable until this is configured. */
 	projects?: string[];
+	/** Allowed model selections for task execution. Defaults to DEFAULT_MODELS when not configured. */
+	models?: string[];
 	/** @deprecated Milestones are sourced from milestone files, not config. */
 	milestones?: string[];
 	definitionOfDone?: string[];

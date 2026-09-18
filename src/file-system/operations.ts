@@ -69,7 +69,7 @@ interface LockAttemptSettings {
 }
 
 /** Config keys stored as YAML lists. `default_assignee` also accepts a single scalar. */
-type ConfigListKey = "statuses" | "labels" | "types" | "priorities" | "projects" | "default_assignee";
+type ConfigListKey = "statuses" | "labels" | "types" | "priorities" | "projects" | "models" | "default_assignee";
 
 /**
  * A mapping key line, whatever characters the name uses. Keys Backlog does not read still end the
@@ -2090,6 +2090,7 @@ ${description || `Milestone: ${title}`}`,
 		config.types = parseListValue("types");
 		config.priorities = parseListValue("priorities");
 		config.projects = parseListValue("projects");
+		config.models = parseListValue("models");
 		config.defaultAssignee = parseListValue("default_assignee");
 		const lines = content.split("\n");
 
@@ -2182,6 +2183,7 @@ ${description || `Milestone: ${title}`}`,
 			types: config.types,
 			priorities: config.priorities,
 			projects: config.projects,
+			models: config.models,
 			definitionOfDone: config.definitionOfDone,
 			defaultStatus: config.defaultStatus,
 			dateFormat: config.dateFormat || "yyyy-mm-dd",
@@ -2220,6 +2222,9 @@ ${description || `Milestone: ${title}`}`,
 				: []),
 			...(config.projects && config.projects.length > 0
 				? [`projects: [${config.projects.map((p) => `"${p}"`).join(", ")}]`]
+				: []),
+			...(config.models && config.models.length > 0
+				? [`models: [${config.models.map((m) => `"${m}"`).join(", ")}]`]
 				: []),
 			...(Array.isArray(normalizedDefinitionOfDone)
 				? [`definition_of_done: [${normalizedDefinitionOfDone.map((item) => JSON.stringify(item)).join(", ")}]`]

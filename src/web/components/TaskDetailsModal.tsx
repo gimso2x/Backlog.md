@@ -13,6 +13,7 @@ import { DependencyGraphSection } from "./DependencyGraphSection";
 import StoredDate from "./StoredDate";
 import { getPriorityOptions } from "../../utils/priority-config";
 import { getProjectValues, resolveProjectValue } from "../../utils/project-config";
+import { getModelValues, resolveModelValue } from "../../utils/model-config";
 import { getTaskTypeValues, resolveTaskTypeValue } from "../../utils/task-type-config";
 import { formatReadinessBlockers } from "../../utils/readiness";
 import { buildTaskIdIndex, resolveTaskReference } from "../utils/task-id-links";
@@ -36,6 +37,7 @@ interface Props {
   availablePriorities?: string[];
   availableTypes?: string[];
   availableProjects?: string[];
+  availableModels?: string[];
   milestoneEntities?: Milestone[];
   archivedMilestoneEntities?: Milestone[];
   definitionOfDoneDefaults?: string[];
@@ -48,6 +50,7 @@ type Mode = "preview" | "edit" | "create";
 type TaskUpdatePayload = Omit<Partial<Task>, "dueDate" | "project"> & {
 	dueDate?: string | null;
   project?: string | null;
+  model?: string | null;
   definitionOfDoneAdd?: string[];
   definitionOfDoneRemove?: number[];
   definitionOfDoneCheck?: number[];
@@ -76,6 +79,7 @@ type TaskDetailsFormState = {
   priority: string;
   taskType: string;
   project: string;
+  model: string;
   dependencies: string[];
   references: string[];
   modifiedFiles: string[];
@@ -133,6 +137,7 @@ const buildTaskDetailsFormState = ({
   priority: task?.priority || "",
   taskType: task?.type || "",
   project: task?.project || "",
+  model: task?.model || "",
   dependencies: task?.dependencies || [],
   references: task?.references || [],
   modifiedFiles: task?.modifiedFiles || [],
@@ -148,6 +153,97 @@ const SectionHeader: React.FC<{ title: string; right?: React.ReactNode }> = ({ t
     {right ? <div className="ml-2 text-xs text-gray-500 dark:text-gray-400">{right}</div> : null}
   </div>
 );
+const FolderExplorer: React.FC<{
+  onSelect: (selectedPath: string) => void;
+  onClose: () => void;
+}> = ({ onSelect, onClose }) => {
+  const [currentPath, setCurrentPath] = useState<string>("/home/root1/repo");
+  const [parentPath, setParentPath] = useState<string | null>(null);
+  const [directories, setDirectories] = useState<Array<{ name: string; path: string; isGit: boolean }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPath = useCallback(async (path?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.fetchDirectories(path);
+      setCurrentPath(res.current);
+      setParentPath(res.parent);
+      setDirectories(res.directories || []);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPath("/home/root1/repo");
+  }, [loadPath]);
+
+  return (
+    <div className="mt-2.5 p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-xs shadow-lg">
+      <div className="flex items-center justify-between gap-1 mb-2 pb-1.5 border-b border-gray-200 dark:border-gray-700">
+        <span className="font-mono text-gray-400 truncate flex-1 text-[11px]" title={currentPath}>
+          {currentPath.replace("/home/root1", "~")}
+        </span>
+        {parentPath && (
+          <button
+            type="button"
+            onClick={() => loadPath(parentPath)}
+            className="px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-300 text-[10px]"
+          >
+            ⬆ 상위
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-1.5 py-0.5 rounded text-gray-400 hover:text-gray-200 text-[11px]"
+        >
+          ✕
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="py-3 text-center text-gray-400">폴더 읽는 중…</div>
+      ) : error ? (
+        <div className="py-2 text-red-400">{error}</div>
+      ) : directories.length === 0 ? (
+        <div className="py-2 text-center text-gray-500">하위 폴더 없음</div>
+      ) : (
+        <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+          {directories.map((dir) => (
+            <div
+              key={dir.path}
+              className="flex items-center justify-between p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+              onClick={() => loadPath(dir.path)}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span>📁</span>
+                <span className="truncate font-medium text-gray-900 dark:text-gray-100 text-[12px]">{dir.name}</span>
+                {dir.isGit && (
+                  <span className="px-1 text-[9px] rounded bg-emerald-500/20 text-emerald-400 font-mono">git</span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(dir.name);
+                }}
+                className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-medium shrink-0 ml-2"
+              >
+                선택
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const HierarchyStatusBadge: React.FC<{ status: string; statuses: string[] }> = ({ status, statuses }) => {
   const normalized = (status ?? '').toLowerCase();
@@ -190,6 +286,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
   availablePriorities,
   availableTypes,
   availableProjects,
+  availableModels,
   milestoneEntities,
   archivedMilestoneEntities,
   isDraftMode,
@@ -246,6 +343,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
   const priorityOptions = useMemo(() => getPriorityOptions(availablePriorities), [availablePriorities]);
   const typeOptions = useMemo(() => getTaskTypeValues(availableTypes), [availableTypes]);
   const projectOptions = useMemo(() => getProjectValues(availableProjects), [availableProjects]);
+  const modelOptions = useMemo(() => getModelValues(availableModels), [availableModels]);
   const resolveMilestoneToId = useCallback((value?: string | null): string => {
     const normalized = (value ?? "").trim();
     if (!normalized) return "";
@@ -387,6 +485,8 @@ export const TaskDetailsModal: React.FC<Props> = ({
   const [priority, setPriority] = useState<string>(task?.priority || "");
   const [taskType, setTaskType] = useState<string>(task?.type || "");
   const [project, setProject] = useState<string>(task?.project || "");
+  const [model, setModel] = useState<string>(task?.model || "");
+  const [showExplorer, setShowExplorer] = useState(false);
   const [typeUpdateError, setTypeUpdateError] = useState<string | null>(null);
   const [isTypeUpdating, setIsTypeUpdating] = useState(false);
   const typeUpdateInFlightRef = useRef(false);
@@ -400,6 +500,8 @@ export const TaskDetailsModal: React.FC<Props> = ({
   const typeSelectionValue = canonicalTypeSelection ?? taskType;
   const canonicalProjectSelection = resolveProjectValue(project, projectOptions);
   const projectSelectionValue = canonicalProjectSelection ?? project;
+  const canonicalModelSelection = resolveModelValue(model, modelOptions);
+  const modelSelectionValue = canonicalModelSelection ?? model;
   const milestoneSelectionValue = resolveMilestoneToId(milestone);
   const hasMilestoneSelection = (milestoneEntities ?? []).some((milestoneEntity) => milestoneEntity.id === milestoneSelectionValue);
 
@@ -579,6 +681,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
       setPriority((current) => preserveDirtyRefreshValue(current, previousFormState.priority, nextFormState.priority));
       setTaskType((current) => preserveDirtyRefreshValue(current, previousFormState.taskType, nextFormState.taskType));
       setProject((current) => preserveDirtyRefreshValue(current, previousFormState.project, nextFormState.project));
+      setModel((current) => preserveDirtyRefreshValue(current, previousFormState.model, nextFormState.model));
       setDependencies((current) =>
         preserveDirtyRefreshValue(current, previousFormState.dependencies, nextFormState.dependencies, areJsonEqual),
       );
@@ -624,6 +727,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
     setPriority(nextFormState.priority);
     setTaskType(nextFormState.taskType);
     setProject(nextFormState.project);
+    setModel(nextFormState.model);
     setDependencies(nextFormState.dependencies);
     setReferences(nextFormState.references);
     setModifiedFiles(nextFormState.modifiedFiles);
@@ -838,6 +942,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
       if (isCreateMode) {
         taskData.type = taskType;
         taskData.project = project.trim().length > 0 ? project.trim() : undefined;
+        taskData.model = model.trim().length > 0 ? model.trim() : undefined;
       }
 
       if (isCreateMode && onSubmit) {
@@ -921,6 +1026,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
     if (updates.priority !== undefined) setPriority(String(updates.priority));
     if (updates.type !== undefined) setTaskType(String(updates.type));
     if (updates.project !== undefined) setProject(String(updates.project));
+    if (updates.model !== undefined) setModel(String(updates.model));
     if (updates.dependencies !== undefined) setDependencies(updates.dependencies as string[]);
     if (updates.references !== undefined) setReferences(updates.references as string[]);
     if (updates.modifiedFiles !== undefined) setModifiedFiles(updates.modifiedFiles as string[]);
@@ -1350,7 +1456,9 @@ export const TaskDetailsModal: React.FC<Props> = ({
             </section>
           )}
 
-          {/* References */}
+          {/* References, Notes, AC, DoD - Hidden in create mode */}
+          {!isCreateMode && (
+            <>
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
             <SectionHeader title="References" />
             <div className="space-y-3">
@@ -1643,6 +1751,8 @@ export const TaskDetailsModal: React.FC<Props> = ({
               </div>
             )}
           </div>
+            </>
+          )}
 
           {/* Comments */}
           {!isCreateMode && (
@@ -1774,53 +1884,68 @@ export const TaskDetailsModal: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Status */}
+          {/* Project (Folder) */}
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
-            <SectionHeader title="Status" />
-            <StatusSelect current={status} onChange={(val) => handleInlineMetaUpdate({ status: val })} disabled={isFromOtherBranch || isOpenDraft} />
-          </div>
-
-          {/* Type */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
-            <SectionHeader title="Type" />
+            <SectionHeader
+              title="Project (폴더)"
+              right={
+                <button
+                  type="button"
+                  onClick={() => setShowExplorer(!showExplorer)}
+                  className="text-[11px] px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 transition-colors"
+                >
+                  📁 탐색기
+                </button>
+              }
+            />
             <select
-              aria-label="Task type"
-              aria-invalid={typeUpdateError ? true : undefined}
-              aria-describedby={typeUpdateError ? "task-type-update-error" : undefined}
-              className={`w-full h-10 px-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200 ${isFromOtherBranch || isTypeUpdating ? 'opacity-60 cursor-not-allowed' : ''}`}
-              value={typeSelectionValue}
-              onChange={(event) => void handleTaskTypeChange(event.target.value)}
-              disabled={isFromOtherBranch || isTypeUpdating}
+              className={`w-full h-10 px-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200 ${isFromOtherBranch ? 'opacity-60 cursor-not-allowed' : ''}`}
+              aria-label="Task project"
+              value={projectSelectionValue}
+              onChange={(e) => handleInlineMetaUpdate({ project: e.target.value })}
+              disabled={isFromOtherBranch}
             >
-              <option value="">No type</option>
-              {!canonicalTypeSelection && taskType.trim() ? (
-                <option value={taskType}>{taskType} (not configured)</option>
+              <option value="">No Project (Board Root)</option>
+              {!canonicalProjectSelection && project.trim() ? (
+                <option value={project}>{project}</option>
               ) : null}
-              {typeOptions.map((typeOption) => (
-                <option key={typeOption} value={typeOption}>
-                  {typeOption}
+              {projectOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
                 </option>
               ))}
             </select>
-            {typeUpdateError ? (
-              <p id="task-type-update-error" role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
-                {typeUpdateError}
-              </p>
-            ) : null}
+            {showExplorer && (
+              <FolderExplorer
+                onSelect={(selectedName) => {
+                  handleInlineMetaUpdate({ project: selectedName });
+                  setShowExplorer(false);
+                }}
+                onClose={() => setShowExplorer(false)}
+              />
+            )}
           </div>
 
-          {/* Assignee */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
-            <SectionHeader title="Assignee" />
-            <ChipInput
-              name="assignee"
-              label=""
-              value={assignee}
-              onChange={(value) => handleInlineMetaUpdate({ assignee: value })}
-              placeholder="Type name and press Enter"
-              disabled={isFromOtherBranch}
-            />
-          </div>
+          {/* Model */}
+          {modelOptions.length > 0 && (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+              <SectionHeader title="Model (AI 모델)" />
+              <select
+                className={`w-full h-10 px-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200 ${isFromOtherBranch ? 'opacity-60 cursor-not-allowed' : ''}`}
+                aria-label="Task model"
+                value={modelSelectionValue}
+                onChange={(e) => handleInlineMetaUpdate({ model: e.target.value })}
+                disabled={isFromOtherBranch}
+              >
+                <option value="">Default (Auto)</option>
+                {modelOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Labels */}
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
@@ -1830,52 +1955,10 @@ export const TaskDetailsModal: React.FC<Props> = ({
               label=""
               value={labels}
               onChange={(value) => handleInlineMetaUpdate({ labels: value })}
-              placeholder="Type label and press Enter or comma"
+              placeholder="Type label and press Enter"
               disabled={isFromOtherBranch}
             />
           </div>
-
-          {/* Priority */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
-            <SectionHeader title="Priority" />
-            <select
-              className={`w-full h-10 px-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200 ${isFromOtherBranch ? 'opacity-60 cursor-not-allowed' : ''}`}
-              value={priority}
-              onChange={(e) => handleInlineMetaUpdate({ priority: e.target.value as any })}
-              disabled={isFromOtherBranch}
-            >
-              <option value="">No Priority</option>
-              {priorityOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Project */}
-          {projectOptions.length > 0 && (
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
-              <SectionHeader title="Project" />
-              <select
-                className={`w-full h-10 px-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200 ${isFromOtherBranch ? 'opacity-60 cursor-not-allowed' : ''}`}
-                aria-label="Task project"
-                value={projectSelectionValue}
-                onChange={(e) => handleInlineMetaUpdate({ project: e.target.value })}
-                disabled={isFromOtherBranch}
-              >
-                <option value="">No Project</option>
-                {!canonicalProjectSelection && project.trim() ? (
-                  <option value={project}>{project} (not configured)</option>
-                ) : null}
-                {projectOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Milestone */}
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
@@ -1883,11 +1966,11 @@ export const TaskDetailsModal: React.FC<Props> = ({
             <select
               className={`w-full h-10 px-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200 ${isFromOtherBranch ? 'opacity-60 cursor-not-allowed' : ''}`}
               value={milestoneSelectionValue}
-				onChange={(e) => {
-					const value = e.target.value;
-					setMilestone(value);
-					handleInlineMetaUpdate({ milestone: value.trim().length > 0 ? value : null });
-				}}
+              onChange={(e) => {
+                const value = e.target.value;
+                setMilestone(value);
+                handleInlineMetaUpdate({ milestone: value.trim().length > 0 ? value : null });
+              }}
               disabled={isFromOtherBranch}
             >
               <option value="">No milestone</option>
@@ -1902,7 +1985,89 @@ export const TaskDetailsModal: React.FC<Props> = ({
             </select>
           </div>
 
+          {/* Collapsible extra options for create mode, or standard sections for edit mode */}
+          {isCreateMode ? (
+            <details className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-3 text-xs text-gray-500 dark:text-gray-400">
+              <summary className="cursor-pointer font-medium hover:text-gray-200 py-1">
+                기타 세부 옵션 (Status, Assignee, Priority…)
+              </summary>
+              <div className="mt-3 space-y-3">
+                {/* Status */}
+                <div>
+                  <SectionHeader title="Status" />
+                  <StatusSelect current={status} onChange={(val) => handleInlineMetaUpdate({ status: val })} disabled={isFromOtherBranch || isOpenDraft} />
+                </div>
+                {/* Priority */}
+                <div>
+                  <SectionHeader title="Priority" />
+                  <select
+                    className="w-full h-10 px-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    value={priority}
+                    onChange={(e) => handleInlineMetaUpdate({ priority: e.target.value as any })}
+                  >
+                    <option value="">No Priority</option>
+                    {priorityOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Assignee */}
+                <div>
+                  <SectionHeader title="Assignee" />
+                  <ChipInput
+                    name="assignee"
+                    label=""
+                    value={assignee}
+                    onChange={(value) => handleInlineMetaUpdate({ assignee: value })}
+                    placeholder="Type name and press Enter"
+                  />
+                </div>
+              </div>
+            </details>
+          ) : (
+            <>
+              {/* Status */}
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+                <SectionHeader title="Status" />
+                <StatusSelect current={status} onChange={(val) => handleInlineMetaUpdate({ status: val })} disabled={isFromOtherBranch || isOpenDraft} />
+              </div>
+
+              {/* Priority */}
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+                <SectionHeader title="Priority" />
+                <select
+                  className={`w-full h-10 px-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200 ${isFromOtherBranch ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  value={priority}
+                  onChange={(e) => handleInlineMetaUpdate({ priority: e.target.value as any })}
+                  disabled={isFromOtherBranch}
+                >
+                  <option value="">No Priority</option>
+                  {priorityOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assignee */}
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+                <SectionHeader title="Assignee" />
+                <ChipInput
+                  name="assignee"
+                  label=""
+                  value={assignee}
+                  onChange={(value) => handleInlineMetaUpdate({ assignee: value })}
+                  placeholder="Type name and press Enter"
+                  disabled={isFromOtherBranch}
+                />
+              </div>
+            </>
+          )}
           {/* Dependencies */}
+          {!isCreateMode && (
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
             <SectionHeader title="Dependencies" />
             <DependencyInput
@@ -1927,6 +2092,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* Archive button at bottom of sidebar */}
 		          {task && onArchive && !isFromOtherBranch && (

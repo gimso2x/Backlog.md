@@ -1,5 +1,6 @@
+import fs from "node:fs";
 import net from "node:net";
-import { dirname, isAbsolute, join } from "node:path";
+import path, { dirname, isAbsolute, join } from "node:path";
 import type { Server, ServerWebSocket } from "bun";
 import { DEFAULT_STATUSES } from "../constants/index.ts";
 import { Core } from "../core/backlog.ts";
@@ -444,6 +445,9 @@ export class BacklogServer {
 					"/api/config": {
 						GET: async () => await this.handleGetConfig(),
 						PUT: async (req: Request) => await this.handleUpdateConfig(req),
+					},
+					"/api/directories": {
+						GET: async (req: Request) => await this.handleListDirectories(req),
 					},
 					"/api/docs": {
 						GET: async () => await this.handleListDocs(),
@@ -1502,6 +1506,50 @@ export class BacklogServer {
 		} catch (error) {
 			console.error("Error loading config:", error);
 			return Response.json({ error: "Failed to load configuration" }, { status: 500 });
+		}
+	}
+	private async handleListDirectories(req: Request): Promise<Response> {
+		try {
+			const url = new URL(req.url);
+			let targetPath = url.searchParams.get("path");
+			const homeDir = process.env.HOME || "/home/root1";
+			if (!targetPath || !targetPath.trim()) {
+				const repoDir = path.join(homeDir, "repo");
+				targetPath = fs.existsSync(repoDir) ? repoDir : homeDir;
+			}
+			if (targetPath.startsWith("~")) {
+				targetPath = path.join(homeDir, targetPath.slice(1));
+			}
+			targetPath = path.resolve(targetPath);
+			if (!fs.existsSync(targetPath)) {
+				return Response.json({ error: "Path does not exist", current: targetPath, directories: [] }, { status: 404 });
+			}
+			const stat = await fs.promises.stat(targetPath);
+			if (!stat.isDirectory()) {
+				targetPath = path.dirname(targetPath);
+			}
+			const entries = await fs.promises.readdir(targetPath, { withFileTypes: true });
+			const dirs = entries
+				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
+				.map((e) => {
+					const full = path.join(targetPath, e.name);
+					const isGit = fs.existsSync(path.join(full, ".git"));
+					return {
+						name: e.name,
+						path: full,
+						isGit,
+					};
+				})
+				.sort((a, b) => a.name.localeCompare(b.name));
+
+			return Response.json({
+				current: targetPath,
+				parent: path.dirname(targetPath) !== targetPath ? path.dirname(targetPath) : null,
+				directories: dirs,
+			});
+		} catch (error) {
+			console.error("Error listing directories:", error);
+			return Response.json({ error: String(error), directories: [] }, { status: 500 });
 		}
 	}
 

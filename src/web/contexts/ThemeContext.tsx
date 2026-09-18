@@ -29,12 +29,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 			return savedTheme;
 		}
 		
-		// Check system preference
-		if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-			return 'dark';
+		// Default to dark mode (Linear style) unless explicitly set to light
+		if (savedTheme === 'light') {
+			return 'light';
 		}
-		
-		return 'light';
+		return 'dark';
 	});
 
 	useEffect(() => {

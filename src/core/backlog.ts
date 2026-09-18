@@ -1766,6 +1766,7 @@ export class Core {
 		const priority = await this.normalizePriority(input.priority);
 		const type = await this.normalizeTaskType(input.type);
 		const project = await this.normalizeProject(input.project);
+		const model = input.model ? String(input.model).trim() : undefined;
 		const createdDate = new Date().toISOString().slice(0, 16).replace("T", " ");
 		if (
 			input.ordinal !== undefined &&
@@ -1838,6 +1839,7 @@ export class Core {
 				...(priority && { priority }),
 				...(type && { type }),
 				...(project && { project }),
+				...(model && { model }),
 				...(typeof ordinal === "number" && { ordinal }),
 				...(typeof input.milestone === "string" &&
 					input.milestone.trim().length > 0 && {
@@ -2042,6 +2044,18 @@ export class Core {
 					delete task.project;
 				} else {
 					task.project = normalizedProject;
+				}
+				mutated = true;
+			}
+		}
+		if (input.model !== undefined) {
+			const normalizedModel =
+				input.model === null ? undefined : input.model.trim().length > 0 ? input.model.trim() : undefined;
+			if ((task.model ?? undefined) !== normalizedModel) {
+				if (normalizedModel === undefined) {
+					delete task.model;
+				} else {
+					task.model = normalizedModel;
 				}
 				mutated = true;
 			}

@@ -68,6 +68,7 @@ export function serializeTask(task: Task): string {
 		...(task.priority && { priority: task.priority }),
 		...(task.type && { type: task.type }),
 		...(task.project && { project: task.project }),
+		...(task.model && { model: task.model }),
 		...(task.ordinal !== undefined && { ordinal: task.ordinal }),
 		...(task.onStatusChange && { onStatusChange: task.onStatusChange }),
 	};

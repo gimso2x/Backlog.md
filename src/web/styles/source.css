@@ -8,6 +8,23 @@
 
 @theme {
     --radius-circle: 9999px;
+
+    /* Linear Palette (wiki.gimso2x.com) in Dark Mode */
+    --color-gray-950: #08090a;
+    --color-gray-900: #0f1011;
+    --color-gray-800: #16171a;
+    --color-gray-700: #1c1d21;
+    --color-gray-600: #23252a;
+    --color-gray-500: #5c6066;
+    --color-gray-400: #8a8f98;
+    --color-gray-300: #d0d6e0;
+    --color-gray-200: #e2e4e8;
+    --color-gray-100: #f7f8f8;
+    --color-blue-500: #5e6ad2;
+    --color-blue-600: #4f5bc7;
+
+    --font-sans: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 @layer base {
@@ -58,6 +75,34 @@
 
     ::-webkit-scrollbar-thumb:hover {
         background-color: var(--scrollbar-thumb-hover);
+    }
+    /* Linear Aesthetic Overrides */
+    html, body {
+        font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+        font-size: 13px;
+        line-height: 1.5;
+        letter-spacing: -0.011em;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+    }
+    .dark {
+        color-scheme: dark;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        letter-spacing: -0.02em;
+    }
+    .font-mono {
+        font-feature-settings: "tnum";
+    }
+    .dark .rounded-lg {
+        border-radius: 8px !important;
+    }
+    .dark .rounded-md {
+        border-radius: 6px !important;
+    }
+    .dark .shadow-md, .dark .shadow-lg {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3) !important;
     }
 }
 

@@ -35,6 +35,7 @@ import { useHealthCheckContext } from './contexts/HealthCheckContext';
 import { getWebVersion } from './utils/version';
 import { collectArchivedMilestoneKeys, collectMilestoneIds, milestoneKey } from './utils/milestones';
 import { getProjectValues } from '../utils/project-config';
+import { getModelValues } from '../utils/model-config';
 import { getTaskTypeValues } from '../utils/task-type-config';
 import { createUrlPath } from './utils/urlHelpers';
 import { filterKanbanTasks } from './utils/kanban-tasks';
@@ -243,6 +244,7 @@ function AppContent() {
   const [config, setConfig] = useState<BacklogConfig | null>(null);
   const availableTypes = React.useMemo(() => getTaskTypeValues(config), [config]);
   const availableProjects = React.useMemo(() => getProjectValues(config), [config]);
+  const availableModels = React.useMemo(() => getModelValues(config?.models), [config]);
   const [milestones, setMilestones] = useState<string[]>([]);
   const [milestoneEntities, setMilestoneEntities] = useState<Milestone[]>([]);
   const [archivedMilestones, setArchivedMilestones] = useState<Milestone[]>([]);
@@ -1084,6 +1086,7 @@ function AppContent() {
         availablePriorities={config?.priorities}
         availableTypes={availableTypes}
         availableProjects={availableProjects}
+        availableModels={availableModels}
         milestoneEntities={milestoneEntities}
         archivedMilestoneEntities={archivedMilestones}
         isDraftMode={isDraftMode}

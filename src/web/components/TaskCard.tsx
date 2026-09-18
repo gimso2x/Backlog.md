@@ -249,6 +249,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
             <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500 font-mono transition-colors duration-200">{task.id}</span>
             <TaskTypeBadge type={task.type} availableTypes={availableTypes} className="min-w-0" />
             <ProjectBadge project={task.project} availableProjects={availableProjects} className="min-w-0" />
+            {task.model && (
+              <span className="inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-[10px] font-medium leading-4 bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 truncate" title={`Model: ${task.model}`}>
+                {task.model}
+              </span>
+            )}
           </div>
           {(acceptanceCriteriaProgress || priorityBadge) && (
             <div className="flex shrink-0 items-center gap-2">

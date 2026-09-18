@@ -91,8 +91,7 @@
         // Prevent flash of wrong theme by applying theme before page renders
         (function() {
             const savedTheme = localStorage.getItem('backlog-theme');
-            const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const shouldUseDark = savedTheme === 'dark' || (!savedTheme && systemDark);
+            const shouldUseDark = savedTheme !== 'light';
             
             if (shouldUseDark) {
                 document.documentElement.classList.add('dark');

@@ -344,6 +344,14 @@ export class ApiClient {
 			body: JSON.stringify(updates),
 		});
 	}
+	async fetchDirectories(targetPath?: string): Promise<{
+		current: string;
+		parent: string | null;
+		directories: Array<{ name: string; path: string; isGit: boolean }>;
+	}> {
+		const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : "";
+		return this.fetchJson(`${API_BASE}/directories${query}`);
+	}
 
 	async reorderTask(payload: ReorderTaskPayload): Promise<{ success: boolean; task: Task; changedTasks: Task[] }> {
 		return this.fetchJson<{ success: boolean; task: Task; changedTasks: Task[] }>(`${API_BASE}/tasks/reorder`, {
